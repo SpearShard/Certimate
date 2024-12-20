@@ -1,0 +1,128 @@
+const top = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+
+
+    #top,#Bottom1,#Bottom3{
+      display: block;
+      width:100%;
+      max-width:2000px;
+      height:auto;
+      margin: auto;
+    }
+    .social-images {
+      display: flex; 
+      justify-content: center;
+      width:100%; 
+      max-width:2000px;
+      height:auto;
+      margin:auto;
+    }
+    .social-images img {
+      width:100%; 
+      max-width:700px;
+      height:auto;
+      margin:0px;
+    }
+  </style>
+</head>
+<body>
+  <div id="top">
+    <img src="https://drive.google.com/uc?export=view&id=1A70SrcDVGJP_CMmQ0iqReiVtVgUtzOrE">
+  </div>
+
+  <div class="content">
+  
+  <p>Dear [Name],</p>
+
+  <p>Thank you for attending the Generative AI & Retrieval-Augmented Generation (RAG) workshop! We truly appreciate your enthusiasm and active participation throughout the event.</p>
+
+  <p>As a token of our appreciation, please find your Certificate of Participation attached to this email. We hope the workshop helped you gain valuable insights and skills in Generative AI and RAG, empowering you to create more intelligent and context-aware systems.</p>
+
+  <p>Don't forget to follow us on our socials for updates on future events and more learning opportunities.</p>
+
+  <p>Best regards,</p>
+  <p>Microsoft Student Club</p>
+  </div>
+
+  <div id = "Bottom1">
+    <img src="https://drive.google.com/uc?export=view&id=1FraKWjV6l1-r36c6btlAdGj9y_x9f-vE">
+  </div>
+
+  <div class="social-images">
+    <a href="https://www.instagram.com/msclub_cit?igsh=eGs5eXUxaXllNHgx" target="_blank">
+      <img src="https://drive.google.com/uc?export=view&id=1gccRkRBiiz43nY1fFXRSCbz47BqnnA9R" >
+    </a>
+    <a href="https://www.linkedin.com/company/microsoft-student-club-citech" target="_blank">
+      <img src="https://drive.google.com/uc?export=view&id=1DyG2ZnkT3gJLSZtFh-g-HA_NzhKSLBId" >
+    </a>
+    <a href="https://chat.whatsapp.com/G7eRAYBPEXoFhEIDuvnI4v" target="_blank">
+      <img src="https://drive.google.com/uc?export=view&id=1El3YLfIrBaMldib7odiXIkB9EO3qboxS" >
+    </a>
+  </div>
+
+
+  <div id="Bottom3">
+    <img src="https://drive.google.com/uc?export=view&id=1vup-pc7BXB67Qnv-aHkc9eSZFHpWTnMz">
+  </div>
+
+</body>
+</html>
+`;
+
+function sendCertificates() {
+  // Set up the Google Slides and Google Sheets documents
+  const templateSlideId = '1-e4qumqV963zso0ZWKrG-_dHIXVu1aTsTPy8Sd8LGV4'; // Use only the ID
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Info'); // Use your Sheet's name
+
+  if (!sheet) {
+    throw new Error("Sheet 'Info' not found. Please check the sheet name.");
+  }
+
+  // Get all rows of attendee data
+  const data = sheet.getDataRange().getValues();
+
+  // Loop through each row, skipping the header
+  for (let i = 1; i < data.length; i++) {
+    let name = data[i][0];
+    const email = data[i][1];
+
+
+    // Create a new Google Slides presentation based on the template
+    const newSlide = DriveApp.getFileById(templateSlideId).makeCopy();
+    const presentation = SlidesApp.openById(newSlide.getId());
+
+    // Replace placeholders with actual data
+    const slides = presentation.getSlides();
+    slides.forEach(slide => {
+      Logger.log(`Replacing placeholders for ${name}`);
+      slide.replaceAllText('{{Name}}', name);
+
+      const textelements = slide.getShapes().filter(shape => shape.getText !== undefined);
+
+      textelements.forEach(textelements => {
+        const textRange = textelements.getText();
+        // textRange.getTextStyle().setFontFamily("Allura").setFontSize(100);
+        textRange.getTextStyle().setFontFamily("Playfair Display").setFontSize(100);
+      });
+    });
+
+    // Save and close the presentation
+    presentation.saveAndClose();
+
+    // Save as PDF
+    const pdf = DriveApp.getFileById(newSlide.getId()).getAs('application/pdf');
+    pdf.setName(`Certificate - ${name}`);
+
+    // Send the certificate via email with the images and placeholder for the certificate
+    GmailApp.sendEmail(email, 'Your Certificate of Participation for Generative AI & Retrieval-Augment Generation(RAG)', 'Hi, see the email template for your certificate.', {
+      htmlBody: top.replace('[Name]',name),
+      attachments: [pdf],
+    });
+
+    // Remove the copy to save storage space
+    DriveApp.getFileById(newSlide.getId()).setTrashed(true);
+  }
+}
