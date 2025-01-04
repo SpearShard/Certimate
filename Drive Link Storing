@@ -1,0 +1,74 @@
+function sendCertificates() {
+  const templateSlideId = '1-e4qumqV963zso0ZWKrG-_dHIXVu1aTsTPy8Sd8LGV4'; // Google Slides template ID
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Info'); // Replace 'Info' with your sheet's name
+  const driveFolderId = '12rhAMPPl_RbGuS_KuVhSoCQaXUdQBsmS'; // Target Google Drive folder ID
+
+  if (!sheet) {
+    throw new Error("Sheet 'Info' not found. Please check the sheet name.");
+  }
+
+  if (!driveFolderId) {
+    throw new Error("Drive folder ID not provided. Please specify the folder ID.");
+  }
+
+  const folder = DriveApp.getFolderById(driveFolderId);
+  if (!folder) {
+    throw new Error("Specified Drive folder not found. Please check the folder ID.");
+  }
+
+  const data = sheet.getDataRange().getValues();
+
+  // Loop through each row, skipping the header
+  for (let i = 1; i < data.length; i++) {
+    const name = data[i][0];
+    const department = data[i][1];
+
+    if (!name || !department) {
+      Logger.log(`Skipping row ${i + 1}: Missing name or department`);
+      continue; // Skip rows with missing data
+    }
+
+    try {
+      const pdfName = `Certificate - ${name}`;
+
+      // Check if a file with the same name already exists in the folder
+      const existingFiles = folder.getFilesByName(pdfName);
+      if (existingFiles.hasNext()) {
+        Logger.log(`Skipping ${name}: Certificate already exists in the folder.`);
+        continue; // Skip creating a duplicate certificate
+      }
+
+      // Create a new Google Slides presentation based on the template
+      const newSlide = DriveApp.getFileById(templateSlideId).makeCopy();
+      const presentation = SlidesApp.openById(newSlide.getId());
+
+      // Replace placeholders with actual data
+      const slides = presentation.getSlides();
+      slides.forEach(slide => {
+        slide.replaceAllText('{{Name}}', name);
+        slide.replaceAllText('{{Department}}', department);
+        slide.getShapes().forEach(shape => {
+          if (shape.getText) {
+            const textRange = shape.getText();
+            textRange.getTextStyle().setFontFamily("Great Vibes").setFontSize(80);
+          }
+        });
+      });
+
+      // Save and close the presentation
+      presentation.saveAndClose();
+
+      // Save as PDF
+      const pdf = DriveApp.getFileById(newSlide.getId()).getAs('application/pdf');
+      pdf.setName(pdfName);
+      folder.createFile(pdf);
+
+      // Clean up: Trash the copied presentation
+      DriveApp.getFileById(newSlide.getId()).setTrashed(true);
+
+      Logger.log(`Certificate for ${name} saved to folder.`);
+    } catch (error) {
+      Logger.log(`Error processing row ${i + 1}: ${error.message}`);
+    }
+  }
+}
